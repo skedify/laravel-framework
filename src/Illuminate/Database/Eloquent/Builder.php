@@ -588,11 +588,13 @@ class Builder {
 	/**
 	 * Add a relationship count condition to the query.
 	 *
-	 * @param  string  $relation
-	 * @param  string  $operator
-	 * @param  int     $count
-	 * @param  string  $boolean
-	 * @param  \Closure|null  $callback
+	 * @param  string            $relation
+	 * @param  string            $operator
+	 * @param  int               $count
+	 * @param  string            $boolean
+	 * @param  \Closure|null     $callback
+	 * @param  string|array|null $morphTypes
+	 * @param  bool              $morphCall Indicate of it's an internal call
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
 	public function has($relation, $operator = '>=', $count = 1, $boolean = 'and', Closure $callback = null, $morphTypes = null, $morphCall = false)
@@ -616,27 +618,6 @@ class Builder {
 		if ($callback) call_user_func($callback, $query);
 
 		return $this->addHasWhere($query, $relation, $operator, $count, $boolean);
-	}
-
-
-	public function hasMorphed($relation, $operator = '>=', $count = 1, $boolean = 'and', Closure $callback = null, $morphTypes = null)
-	{
-		if (! is_array($morphTypes))
-		{
-			$morphTypes = [$morphTypes];
-		}
-
-		// Wrap again to make sure the deleted_at = null query
-		// applies to all of these has queries
-		// This isn't a problem with one sub query,
-		// but it is when using multiple in one whereHas
-		return $this->where(function ($query) use ($morphTypes, $relation, $operator, $count, $callback)
-		{
-			foreach ($morphTypes as $type)
-			{
-				$query->has($relation, $operator, $count, 'or', $callback, $type, true);
-			}
-		}, null, null, $boolean);
 	}
 
 	/**
@@ -671,12 +652,45 @@ class Builder {
 		return $this->whereHas(array_shift($relations), $closure);
 	}
 
+
+	/**
+	 * Add morphTo relationship count conditions to the query.
+	 * 
+	 * @param          $relation
+	 * @param string   $operator
+	 * @param int      $count
+	 * @param string   $boolean
+	 * @param callable $callback
+	 * @param null     $morphTypes
+	 * @return Builder
+	 */
+	protected function hasMorphed($relation, $operator = '>=', $count = 1, $boolean = 'and', Closure $callback = null, $morphTypes = null)
+	{
+		if (! is_array($morphTypes))
+		{
+			$morphTypes = [$morphTypes];
+		}
+
+		// Wrap again to make sure the deleted_at = null query
+		// applies to all of these has queries
+		// This isn't a problem with one sub query,
+		// but it is when using multiple in one whereHas
+		return $this->where(function ($query) use ($morphTypes, $relation, $operator, $count, $callback)
+		{
+			foreach ($morphTypes as $type)
+			{
+				$query->has($relation, $operator, $count, 'or', $callback, $type, true);
+			}
+		}, null, null, $boolean);
+	}
+
 	/**
 	 * Add a relationship count condition to the query.
 	 *
 	 * @param  string  $relation
 	 * @param  string  $boolean
 	 * @param  \Closure|null  $callback
+	 * @param  string|array|null  $morphTypes
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
 	public function doesntHave($relation, $boolean = 'and', Closure $callback = null, $morphTypes = null)
@@ -691,6 +705,7 @@ class Builder {
 	 * @param  \Closure  $callback
 	 * @param  string    $operator
 	 * @param  int       $count
+	 * @param  string|array|null  $morphTypes
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
 	public function whereHas($relation, Closure $callback, $operator = '>=', $count = 1, $morphTypes = null)
@@ -716,6 +731,7 @@ class Builder {
 	 * @param  string  $relation
 	 * @param  string  $operator
 	 * @param  int     $count
+	 * @param  string|array|null  $morphTypes
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
 	public function orHas($relation, $operator = '>=', $count = 1, $morphTypes = null)
@@ -730,6 +746,7 @@ class Builder {
 	 * @param  \Closure  $callback
 	 * @param  string    $operator
 	 * @param  int       $count
+	 * @param  string|array|null  $morphTypes
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
 	public function orWhereHas($relation, Closure $callback, $operator = '>=', $count = 1, $morphTypes = null)
@@ -786,6 +803,7 @@ class Builder {
 	 * Get the "has relation" base query instance.
 	 *
 	 * @param  string  $relation
+	 * @param  string  $morphType
 	 * @return \Illuminate\Database\Eloquent\Builder
 	 */
 	protected function getHasRelationQuery($relation, $morphType = null)
@@ -799,13 +817,14 @@ class Builder {
 			{
 				// TODO: build query yourself instead of retrieving record?
 
-				// Checkout this package from Git, adjust, commit, change in composer.json and test with some real code (again)
-				//$lookAhead = $this->getModel()->where($name . '_type', '=', $morphType)->first();
+				// Get a query object with the right morph type
 				$lookAhead = $relation->getParent()->where($name . '_type', '=', $morphType)->first();
-				$relation  = $lookAhead->{$name}();
+
+				// Get its relation
+				$relation = $lookAhead->{$name}();
 
 				// Further limit the query by the morph type to make sure
-				// sure the results are limited to this morph type only
+				// the results are limited to this morph type only
 				$relation = $relation->where($relation->getParent()->getTable() . '.' . $relation->getMorphType(), '=', $morphType);
 			};
 
