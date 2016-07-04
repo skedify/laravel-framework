@@ -588,21 +588,30 @@ class Builder {
 	/**
 	 * Add a relationship count condition to the query.
 	 *
-	 * @param  string  $relation
-	 * @param  string  $operator
-	 * @param  int     $count
-	 * @param  string  $boolean
-	 * @param  \Closure|null  $callback
+	 * @param  string            $relation
+	 * @param  string            $operator
+	 * @param  int               $count
+	 * @param  string            $boolean
+	 * @param  \Closure|null     $callback
+	 * @param  string|array|null $morphTypes
+	 * @param  bool              $morphCall Indicate of it's an internal call
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
-	public function has($relation, $operator = '>=', $count = 1, $boolean = 'and', Closure $callback = null)
+	public function has($relation, $operator = '>=', $count = 1, $boolean = 'and', Closure $callback = null, $morphTypes = null, $morphCall = false)
 	{
+		// TODO: does a nested morphTo whereHas work?
 		if (strpos($relation, '.') !== false)
 		{
 			return $this->hasNested($relation, $operator, $count, $boolean, $callback);
 		}
 
-		$relation = $this->getHasRelationQuery($relation);
+		// Check for whereHas call with morphTo relation
+		if (! is_null($morphTypes) && $morphCall === false)
+		{
+			return $this->hasMorphed($relation, $operator, $count, $boolean, $callback, $morphTypes);
+		}
+
+		$relation = $this->getHasRelationQuery($relation, $morphTypes);
 
 		$query = $relation->getRelationCountQuery($relation->getRelated()->newQuery(), $this);
 
@@ -643,17 +652,50 @@ class Builder {
 		return $this->whereHas(array_shift($relations), $closure);
 	}
 
+
+	/**
+	 * Add morphTo relationship count conditions to the query.
+	 * 
+	 * @param          $relation
+	 * @param string   $operator
+	 * @param int      $count
+	 * @param string   $boolean
+	 * @param callable $callback
+	 * @param null     $morphTypes
+	 * @return Builder
+	 */
+	protected function hasMorphed($relation, $operator = '>=', $count = 1, $boolean = 'and', Closure $callback = null, $morphTypes = null)
+	{
+		if (! is_array($morphTypes))
+		{
+			$morphTypes = [$morphTypes];
+		}
+
+		// Wrap again to make sure the deleted_at = null query
+		// applies to all of these has queries
+		// This isn't a problem with one sub query,
+		// but it is when using multiple in one whereHas
+		return $this->where(function ($query) use ($morphTypes, $relation, $operator, $count, $callback)
+		{
+			foreach ($morphTypes as $type)
+			{
+				$query->has($relation, $operator, $count, 'or', $callback, $type, true);
+			}
+		}, null, null, $boolean);
+	}
+
 	/**
 	 * Add a relationship count condition to the query.
 	 *
 	 * @param  string  $relation
 	 * @param  string  $boolean
 	 * @param  \Closure|null  $callback
+	 * @param  string|array|null  $morphTypes
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
-	public function doesntHave($relation, $boolean = 'and', Closure $callback = null)
+	public function doesntHave($relation, $boolean = 'and', Closure $callback = null, $morphTypes = null)
 	{
-		return $this->has($relation, '<', 1, $boolean, $callback);
+		return $this->has($relation, '<', 1, $boolean, $callback, $morphTypes);
 	}
 
 	/**
@@ -663,11 +705,12 @@ class Builder {
 	 * @param  \Closure  $callback
 	 * @param  string    $operator
 	 * @param  int       $count
+	 * @param  string|array|null  $morphTypes
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
-	public function whereHas($relation, Closure $callback, $operator = '>=', $count = 1)
+	public function whereHas($relation, Closure $callback, $operator = '>=', $count = 1, $morphTypes = null)
 	{
-		return $this->has($relation, $operator, $count, 'and', $callback);
+		return $this->has($relation, $operator, $count, 'and', $callback, $morphTypes);
 	}
 
 	/**
@@ -688,11 +731,12 @@ class Builder {
 	 * @param  string  $relation
 	 * @param  string  $operator
 	 * @param  int     $count
+	 * @param  string|array|null  $morphTypes
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
-	public function orHas($relation, $operator = '>=', $count = 1)
+	public function orHas($relation, $operator = '>=', $count = 1, $morphTypes = null)
 	{
-		return $this->has($relation, $operator, $count, 'or');
+		return $this->has($relation, $operator, $count, 'or', null, $morphTypes);
 	}
 
 	/**
@@ -702,11 +746,12 @@ class Builder {
 	 * @param  \Closure  $callback
 	 * @param  string    $operator
 	 * @param  int       $count
+	 * @param  string|array|null  $morphTypes
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
-	public function orWhereHas($relation, Closure $callback, $operator = '>=', $count = 1)
+	public function orWhereHas($relation, Closure $callback, $operator = '>=', $count = 1, $morphTypes = null)
 	{
-		return $this->has($relation, $operator, $count, 'or', $callback);
+		return $this->has($relation, $operator, $count, 'or', $callback, $morphTypes);
 	}
 
 	/**
@@ -758,13 +803,32 @@ class Builder {
 	 * Get the "has relation" base query instance.
 	 *
 	 * @param  string  $relation
+	 * @param  string  $morphType
 	 * @return \Illuminate\Database\Eloquent\Builder
 	 */
-	protected function getHasRelationQuery($relation)
+	protected function getHasRelationQuery($relation, $morphType = null)
 	{
-		return Relation::noConstraints(function() use ($relation)
+		return Relation::noConstraints(function () use ($relation, $morphType)
 		{
-			return $this->getModel()->$relation();
+			$name = $relation;
+			$relation = $this->getModel()->$relation();
+
+			if (get_class($relation) === 'Illuminate\Database\Eloquent\Relations\MorphTo')
+			{
+				// TODO: build query yourself instead of retrieving record?
+
+				// Get a query object with the right morph type
+				$lookAhead = $relation->getParent()->where($name . '_type', '=', $morphType)->first();
+
+				// Get its relation
+				$relation = $lookAhead->{$name}();
+
+				// Further limit the query by the morph type to make sure
+				// the results are limited to this morph type only
+				$relation = $relation->where($relation->getParent()->getTable() . '.' . $relation->getMorphType(), '=', $morphType);
+			};
+
+			return $relation;
 		});
 	}
 
