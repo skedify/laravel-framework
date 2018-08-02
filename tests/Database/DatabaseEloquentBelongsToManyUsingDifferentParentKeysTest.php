@@ -68,8 +68,8 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 				'name'             => 'taylor',
 				'pivot_user_id'    => 1,
 				'pivot_role_name'  => 'taylor_role',
-				'pivot_created_at' => '2018-01-01T00:00:00Z',
-				'pivot_updated_at' => '2018-01-01T00:01:00Z',
+				'pivot_created_at' => '2018-01-0 00:00:00',
+				'pivot_updated_at' => '2018-01-0 00:01:00',
 			]
 		);
 		$model2 = new EloquentBelongsToManyUsingDifferentParentKeysModelStub;
@@ -77,8 +77,8 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 				'name'             => 'dayle',
 				'pivot_user_id'    => 3,
 				'pivot_role_name'  => 'dayle_role',
-				'pivot_created_at' => '2018-01-02T00:00:00Z',
-				'pivot_updated_at' => '2018-01-02T00:01:00Z',
+				'pivot_created_at' => '2018-01-02 00:00:00',
+				'pivot_updated_at' => '2018-01-02 00:01:00',
 			]
 		);
 		$models = [$model1, $model2];
@@ -102,9 +102,7 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$relation->getQuery()->shouldReceive('getQuery')->once()->andReturn($baseBuilder);
 		$results = $relation->get();
 		
-		var_dump($results[0]->pivot);
-		
-		$this->assertEquals('2018-01-01T00:00:00Z', $results[0]);
+		$this->assertEquals('2018-01-01T00:00:00Z', $results[0]->pivot->created_at);
 	}
 	
 	
@@ -463,6 +461,7 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$parent->shouldReceive('getKey')->andReturn(1);
 		$parent->shouldReceive('getCreatedAtColumn')->andReturn('created_at');
 		$parent->shouldReceive('getUpdatedAtColumn')->andReturn('updated_at');
+		$parent->shouldReceive('getAttribute')->with('created_at')->andReturn('2018-01-01 00:00:00');
 		
 		$builder = m::mock('Illuminate\Database\Eloquent\Builder');
 		$related = m::mock('Illuminate\Database\Eloquent\Model');
