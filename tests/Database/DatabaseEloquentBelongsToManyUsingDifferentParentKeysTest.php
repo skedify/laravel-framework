@@ -57,55 +57,9 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$this->assertTrue($results[0]->pivot->exists);
 	}
 	
-	
 	/**
-	 * @group belongs-to-many-timestamps
+	 * @group belongs-to-many-parents
 	 */
-	public function testTimestampsCanBeRetrievedProperly()
-	{
-		$model1 = new EloquentBelongsToManyUsingDifferentParentKeysModelStub;
-		$model1->fill([
-				'name'             => 'taylor',
-				'pivot_user_id'    => 1,
-				'pivot_role_name'  => 'taylor_role',
-				'pivot_created_at' => '2018-01-0 00:00:00',
-				'pivot_updated_at' => '2018-01-0 00:01:00',
-			]
-		);
-		$model2 = new EloquentBelongsToManyUsingDifferentParentKeysModelStub;
-		$model2->fill([
-				'name'             => 'dayle',
-				'pivot_user_id'    => 3,
-				'pivot_role_name'  => 'dayle_role',
-				'pivot_created_at' => '2018-01-02 00:00:00',
-				'pivot_updated_at' => '2018-01-02 00:01:00',
-			]
-		);
-		$models = [$model1, $model2];
-		
-		$baseBuilder = m::mock('Illuminate\Database\Query\Builder');
-		
-		$relation = $this->getRelation()->withTimestamps();
-		$relation->getParent()->shouldReceive('getConnectionName')->andReturn('foo.connection');
-		$relation->getQuery()->shouldReceive('addSelect')->once()->with([
-			'roles.*',
-			'user_role.user_id as pivot_user_id',
-			'user_role.role_name as pivot_role_name',
-			'user_role.created_at as pivot_created_at',
-			'user_role.updated_at as pivot_updated_at',
-		])->andReturn($relation->getQuery());
-		$relation->getQuery()->shouldReceive('getModels')->once()->andReturn($models);
-		$relation->getQuery()->shouldReceive('eagerLoadRelations')->once()->with($models)->andReturn($models);
-		$relation->getRelated()->shouldReceive('newCollection')->andReturnUsing(function ($array) {
-			return new Collection($array);
-		});
-		$relation->getQuery()->shouldReceive('getQuery')->once()->andReturn($baseBuilder);
-		$results = $relation->get();
-		
-		$this->assertEquals('2018-01-01T00:00:00Z', $results[0]->pivot->created_at);
-	}
-	
-	
 	public function testModelsAreProperlyMatchedToParents()
 	{
 		$relation = $this->getRelation();
@@ -138,6 +92,9 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	}
 	
 	
+	/**
+	 * @group belongs-to-many-initialized
+	 */
 	public function testRelationIsProperlyInitialized()
 	{
 		$relation = $this->getRelation();
@@ -152,6 +109,9 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	}
 	
 	
+	/**
+	 * @group belongs-to-many-eager
+	 */
 	public function testEagerConstraintsAreProperlyAdded()
 	{
 		$relation = $this->getRelation();
@@ -163,21 +123,26 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$relation->addEagerConstraints([$model1, $model2]);
 	}
 	
-	
+	/**
+	 * @group belongs-to-many-attach-inserts
+	 */
 	public function testAttachInsertsPivotTableRecord()
 	{
 		$relation = $this->getMock('Illuminate\Database\Eloquent\Relations\BelongsToMany', ['touchIfTouching'], $this->getRelationArguments());
 		$query = m::mock('stdClass');
 		$query->shouldReceive('from')->once()->with('user_role')->andReturn($query);
-		$query->shouldReceive('insert')->once()->with([['user_id' => 1, 'role_id' => 2, 'foo' => 'bar']])->andReturn(true);
+		$query->shouldReceive('insert')->once()->with([['user_id' => 1, 'role_name' => 'taylor_role', 'foo' => 'bar']])->andReturn(true);
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
 		$relation->expects($this->once())->method('touchIfTouching');
 		
-		$relation->attach(2, ['foo' => 'bar']);
+		$relation->attach('taylor_role', ['foo' => 'bar']);
 	}
 	
 	
+	/**
+	 * @group belongs-to-many-attach-inserts-multiple
+	 */
 	public function testAttachMultipleInsertsPivotTableRecord()
 	{
 		$relation = $this->getMock('Illuminate\Database\Eloquent\Relations\BelongsToMany', ['touchIfTouching'], $this->getRelationArguments());
@@ -185,31 +150,34 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$query->shouldReceive('from')->once()->with('user_role')->andReturn($query);
 		$query->shouldReceive('insert')->once()->with(
 			[
-				['user_id' => 1, 'role_id' => 2, 'foo' => 'bar'],
-				['user_id' => 1, 'role_id' => 3, 'baz' => 'boom', 'foo' => 'bar'],
+				['user_id' => 1, 'role_name' => 'taylor_role', 'foo' => 'bar'],
+				['user_id' => 1, 'role_name' => 'shared_role', 'baz' => 'boom', 'foo' => 'bar'],
 			]
 		)->andReturn(true);
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
 		$relation->expects($this->once())->method('touchIfTouching');
 		
-		$relation->attach([2, 3 => ['baz' => 'boom']], ['foo' => 'bar']);
+		$relation->attach(['taylor_role', 'shared_role' => ['baz' => 'boom']], ['foo' => 'bar']);
 	}
 	
 	
+	/**
+	 * @group belongs-to-many-attach-timestamps
+	 */
 	public function testAttachInsertsPivotTableRecordWithTimestampsWhenNecessary()
 	{
 		$relation = $this->getMock('Illuminate\Database\Eloquent\Relations\BelongsToMany', ['touchIfTouching'], $this->getRelationArguments());
 		$relation->withTimestamps();
 		$query = m::mock('stdClass');
 		$query->shouldReceive('from')->once()->with('user_role')->andReturn($query);
-		$query->shouldReceive('insert')->once()->with([['user_id' => 1, 'role_id' => 2, 'foo' => 'bar', 'created_at' => 'time', 'updated_at' => 'time']])->andReturn(true);
+		$query->shouldReceive('insert')->once()->with([['user_id' => 1, 'role_name' => 'taylor_role', 'foo' => 'bar', 'created_at' => 'time', 'updated_at' => 'time']])->andReturn(true);
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
 		$relation->getParent()->shouldReceive('freshTimestamp')->once()->andReturn('time');
 		$relation->expects($this->once())->method('touchIfTouching');
 		
-		$relation->attach(2, ['foo' => 'bar']);
+		$relation->attach('taylor_role', ['foo' => 'bar']);
 	}
 	
 	
@@ -486,7 +454,7 @@ class EloquentBelongsToManyUsingDifferentParentKeysModelStub extends Illuminate\
 	
 	protected $guarded = [];
 	
-	protected $attributues = ['id', 'name'];
+//	protected $attributues = ['id', 'name', 'created_at', 'updated_at'];
 }
 
 class EloquentBelongsToManyUsingDifferentParentKeysModelPivotStub extends Illuminate\Database\Eloquent\Model {
