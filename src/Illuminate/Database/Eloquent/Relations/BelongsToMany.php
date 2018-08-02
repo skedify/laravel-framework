@@ -631,7 +631,7 @@ class BelongsToMany extends Relation {
 		{
 			$this->detach($detach);
 
-			$changes['detached'] = (array) array_map(function($v) { return (int) $v; }, $detach);
+			$changes['detached'] = (array) array_map(function($v) { return $v; }, $detach);
 		}
 
 		// Now we are finally ready to attach the new records. Note that we'll disable
@@ -693,7 +693,7 @@ class BelongsToMany extends Relation {
 			{
 				$this->attach($id, $attributes, $touch);
 
-				$changes['attached'][] = (int) $id;
+				$changes['attached'][] = $id;
 			}
 
 			// Now we'll try to update an existing pivot record with the attributes that were
@@ -702,7 +702,7 @@ class BelongsToMany extends Relation {
 			elseif (count($attributes) > 0 &&
 				$this->updateExistingPivot($id, $attributes, $touch))
 			{
-				$changes['updated'][] = (int) $id;
+				$changes['updated'][] = $id;
 			}
 		}
 
