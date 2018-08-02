@@ -20,16 +20,16 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	public function testModelsAreProperlyHydrated()
 	{
 		$model1 = new EloquentBelongsToManyModelStub;
-		$model1->fill(array('name' => 'taylor', 'pivot_user_id' => 1, 'pivot_role_id' => 2));
+		$model1->fill(array('name' => 'taylor', 'pivot_user_id' => 1, 'pivot_role_id' => 2, 'pivot_role_name' => 'taylor_role'));
 		$model2 = new EloquentBelongsToManyModelStub;
-		$model2->fill(array('name' => 'dayle', 'pivot_user_id' => 3, 'pivot_role_id' => 4));
+		$model2->fill(array('name' => 'dayle', 'pivot_user_id' => 3, 'pivot_role_id' => 4, 'pivot_role_name' => 'dayle_role'));
 		$models = array($model1, $model2);
 		
 		$baseBuilder = m::mock('Illuminate\Database\Query\Builder');
 		
 		$relation = $this->getRelation();
 		$relation->getParent()->shouldReceive('getConnectionName')->andReturn('foo.connection');
-		$relation->getQuery()->shouldReceive('addSelect')->once()->with(array('roles.*', 'user_role.user_id as pivot_user_id', 'user_role.role_id as pivot_role_id'))->andReturn($relation->getQuery());
+		$relation->getQuery()->shouldReceive('addSelect')->once()->with(array('roles.*', 'user_role.user_id as pivot_user_id', 'user_role.role_name as pivot_role_name'))->andReturn($relation->getQuery());
 		$relation->getQuery()->shouldReceive('getModels')->once()->andReturn($models);
 		$relation->getQuery()->shouldReceive('eagerLoadRelations')->once()->with($models)->andReturn($models);
 		$relation->getRelated()->shouldReceive('newCollection')->andReturnUsing(function($array) { return new Collection($array); });
@@ -40,21 +40,27 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		
 		// Make sure the foreign keys were set on the pivot models...
 		$this->assertEquals('user_id', $results[0]->pivot->getForeignKey());
-		$this->assertEquals('role_id', $results[0]->pivot->getOtherKey());
+		$this->assertEquals('role_name', $results[0]->pivot->getOtherKey());
 		
 		$this->assertEquals('taylor', $results[0]->name);
 		$this->assertEquals(1, $results[0]->pivot->user_id);
 		$this->assertEquals(2, $results[0]->pivot->role_id);
+		$this->assertEquals('taylor_role', $results[0]->pivot->role_name);
 		$this->assertEquals('foo.connection', $results[0]->pivot->getConnectionName());
+		
 		$this->assertEquals('dayle', $results[1]->name);
 		$this->assertEquals(3, $results[1]->pivot->user_id);
 		$this->assertEquals(4, $results[1]->pivot->role_id);
+		$this->assertEquals('dayle_role', $results[1]->pivot->role_name);
 		$this->assertEquals('foo.connection', $results[1]->pivot->getConnectionName());
 		$this->assertEquals('user_role', $results[0]->pivot->getTable());
 		$this->assertTrue($results[0]->pivot->exists);
 	}
 	
 	
+	/**
+	 * @group belongs-to-many-timestamps
+	 */
 	public function testTimestampsCanBeRetrievedProperly()
 	{
 		$model1 = new EloquentBelongsToManyModelStub;
@@ -424,7 +430,7 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	{
 		list($builder, $parent) = $this->getRelationArguments();
 		
-		return new BelongsToMany($builder, $parent, 'user_role', 'user_id', 'role_id', 'relation_name');
+		return new BelongsToMany($builder, $parent, 'user_role', 'user_id', 'role_name', 'relation_name', null, 'name');
 	}
 	
 	
@@ -447,7 +453,7 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 			return $reflector->newInstanceArgs(func_get_args());
 		});
 		
-		$builder->shouldReceive('join')->once()->with('user_role', 'roles.id', '=', 'user_role.role_id');
+		$builder->shouldReceive('join')->once()->with('user_role', 'roles.name', '=', 'user_role.role_name');
 		$builder->shouldReceive('where')->once()->with('user_role.user_id', '=', 1);
 		
 		return array($builder, $parent, 'user_role', 'user_id', 'role_id', 'relation_name');
