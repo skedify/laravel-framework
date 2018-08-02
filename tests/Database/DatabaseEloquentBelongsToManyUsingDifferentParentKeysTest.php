@@ -187,13 +187,13 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$relation->withPivot('created_at');
 		$query = m::mock('stdClass');
 		$query->shouldReceive('from')->once()->with('user_role')->andReturn($query);
-		$query->shouldReceive('insert')->once()->with([['user_id' => 1, 'role_id' => 2, 'foo' => 'bar', 'created_at' => 'time']])->andReturn(true);
+		$query->shouldReceive('insert')->once()->with([['user_id' => 1, 'role_name' => 'dayle_role', 'foo' => 'bar', 'created_at' => 'time']])->andReturn(true);
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
 		$relation->getParent()->shouldReceive('freshTimestamp')->once()->andReturn('time');
 		$relation->expects($this->once())->method('touchIfTouching');
 		
-		$relation->attach(2, ['foo' => 'bar']);
+		$relation->attach('dayle_role', ['foo' => 'bar']);
 	}
 	
 	
@@ -203,13 +203,13 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$relation->withPivot('updated_at');
 		$query = m::mock('stdClass');
 		$query->shouldReceive('from')->once()->with('user_role')->andReturn($query);
-		$query->shouldReceive('insert')->once()->with([['user_id' => 1, 'role_id' => 2, 'foo' => 'bar', 'updated_at' => 'time']])->andReturn(true);
+		$query->shouldReceive('insert')->once()->with([['user_id' => 1, 'role_name' => 'dayle_role', 'foo' => 'bar', 'updated_at' => 'time']])->andReturn(true);
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
 		$relation->getParent()->shouldReceive('freshTimestamp')->once()->andReturn('time');
 		$relation->expects($this->once())->method('touchIfTouching');
 		
-		$relation->attach(2, ['foo' => 'bar']);
+		$relation->attach('dayle_role', ['foo' => 'bar']);
 	}
 	
 	
@@ -219,13 +219,13 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$query = m::mock('stdClass');
 		$query->shouldReceive('from')->once()->with('user_role')->andReturn($query);
 		$query->shouldReceive('where')->once()->with('user_id', 1)->andReturn($query);
-		$query->shouldReceive('whereIn')->once()->with('role_id', [1, 2, 3]);
+		$query->shouldReceive('whereIn')->once()->with('role_name', ['taylor_role', 'dayle_role']);
 		$query->shouldReceive('delete')->once()->andReturn(true);
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
 		$relation->expects($this->once())->method('touchIfTouching');
 		
-		$this->assertTrue($relation->detach([1, 2, 3]));
+		$this->assertTrue($relation->detach(['taylor_role', 'dayle_role']));
 	}
 	
 	
@@ -235,13 +235,13 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$query = m::mock('stdClass');
 		$query->shouldReceive('from')->once()->with('user_role')->andReturn($query);
 		$query->shouldReceive('where')->once()->with('user_id', 1)->andReturn($query);
-		$query->shouldReceive('whereIn')->once()->with('role_id', [1]);
+		$query->shouldReceive('whereIn')->once()->with('role_name', ['taylor_role']);
 		$query->shouldReceive('delete')->once()->andReturn(true);
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
 		$relation->expects($this->once())->method('touchIfTouching');
 		
-		$this->assertTrue($relation->detach([1]));
+		$this->assertTrue($relation->detach(['taylor_role']));
 	}
 	
 	
@@ -284,21 +284,19 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$query->shouldReceive('where')->once()->with('user_id', 1)->andReturn($query);
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
-		$query->shouldReceive('lists')->once()->with('role_id')->andReturn([1, 2, 3]);
-		$relation->expects($this->once())->method('attach')->with($this->equalTo(4), $this->equalTo([]), $this->equalTo(false));
-		$relation->expects($this->once())->method('detach')->with($this->equalTo([1]));
+		$query->shouldReceive('lists')->once()->with('role_name')->andReturn(['taylor_role', 'dayle_role']);
+		$relation->expects($this->once())->method('attach')->with($this->equalTo('alice_role'), $this->equalTo([]), $this->equalTo(false));
 		$relation->getRelated()->shouldReceive('touches')->andReturn(false);
 		$relation->getParent()->shouldReceive('touches')->andReturn(false);
-		
-		$this->assertEquals(['attached' => [4], 'detached' => [1], 'updated' => []], $relation->sync($list));
+        
+		$this->assertEquals(['attached' => ['alice_role'], 'detached' => [], 'updated' => []], $relation->sync($list));
 	}
 	
 	
 	public function syncMethodListProvider()
 	{
 		return [
-			[[2, 3, 4]],
-			[['2', '3', '4']],
+			[['taylor_role', 'dayle_role', 'alice_role']],
 		];
 	}
 	
@@ -311,13 +309,13 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$query->shouldReceive('where')->once()->with('user_id', 1)->andReturn($query);
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
-		$query->shouldReceive('lists')->once()->with('role_id')->andReturn([1, 2, 3]);
-		$relation->expects($this->once())->method('attach')->with($this->equalTo(4), $this->equalTo(['foo' => 'bar']), $this->equalTo(false));
-		$relation->expects($this->once())->method('updateExistingPivot')->with($this->equalTo(3), $this->equalTo(['baz' => 'qux']), $this->equalTo(false))->will($this->returnValue(true));
-		$relation->expects($this->once())->method('detach')->with($this->equalTo([1]));
+		$query->shouldReceive('lists')->once()->with('role_name')->andReturn(['alice_role', 'taylor_role', 'dayle_role']);
+		$relation->expects($this->once())->method('attach')->with($this->equalTo('bob_role'), $this->equalTo(['foo' => 'bar']), $this->equalTo(false));
+		$relation->expects($this->once())->method('updateExistingPivot')->with($this->equalTo('dayle_role'), $this->equalTo(['baz' => 'qux']), $this->equalTo(false))->will($this->returnValue(true));
+		$relation->expects($this->once())->method('detach')->with($this->equalTo(['alice_role']));
 		$relation->expects($this->once())->method('touchIfTouching');
 		
-		$this->assertEquals(['attached' => [4], 'detached' => [1], 'updated' => [3]], $relation->sync([2, 3 => ['baz' => 'qux'], 4 => ['foo' => 'bar']]));
+		$this->assertEquals(['attached' => ['bob_role'], 'detached' => ['alice_role'], 'updated' => ['dayle_role']], $relation->sync(['taylor_role', 'dayle_role' => ['baz' => 'qux'], 'bob_role' => ['foo' => 'bar']]));
 	}
 	
 	
@@ -329,13 +327,13 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$query->shouldReceive('where')->once()->with('user_id', 1)->andReturn($query);
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
-		$query->shouldReceive('lists')->once()->with('role_id')->andReturn([1, 2, 3]);
-		$relation->expects($this->once())->method('attach')->with($this->equalTo(4), $this->equalTo(['foo' => 'bar']), $this->equalTo(false));
-		$relation->expects($this->once())->method('updateExistingPivot')->with($this->equalTo(3), $this->equalTo(['baz' => 'qux']), $this->equalTo(false))->will($this->returnValue(false));
-		$relation->expects($this->once())->method('detach')->with($this->equalTo([1]));
+		$query->shouldReceive('lists')->once()->with('role_name')->andReturn(['alice_role', 'taylor_role', 'dayle_role']);
+		$relation->expects($this->once())->method('attach')->with($this->equalTo('bob_role'), $this->equalTo(['foo' => 'bar']), $this->equalTo(false));
+		$relation->expects($this->once())->method('updateExistingPivot')->with($this->equalTo('dayle_role'), $this->equalTo(['baz' => 'qux']), $this->equalTo(false))->will($this->returnValue(false));
+		$relation->expects($this->once())->method('detach')->with($this->equalTo(['alice_role']));
 		$relation->expects($this->once())->method('touchIfTouching');
 		
-		$this->assertEquals(['attached' => [4], 'detached' => [1], 'updated' => []], $relation->sync([2, 3 => ['baz' => 'qux'], 4 => ['foo' => 'bar']]));
+		$this->assertEquals(['attached' => ['bob_role'], 'detached' => ['alice_role'], 'updated' => []], $relation->sync(['taylor_role', 'dayle_role' => ['baz' => 'qux'], 'bob_role' => ['foo' => 'bar']]));
 	}
 	
 	
@@ -375,11 +373,11 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$query->shouldReceive('where')->once()->with('user_id', 1)->andReturn($query);
 		$relation->getQuery()->shouldReceive('getQuery')->andReturn($mockQueryBuilder = m::mock('StdClass'));
 		$mockQueryBuilder->shouldReceive('newQuery')->once()->andReturn($query);
-		$query->shouldReceive('lists')->once()->with('role_id')->andReturn([1, 2, 3]);
+		$query->shouldReceive('lists')->once()->with('role_name')->andReturn(['alice_role', 'taylor_role', 'dayle_role']);
 		
 		$collection = m::mock('Illuminate\Database\Eloquent\Collection');
-		$collection->shouldReceive('modelKeys')->once()->andReturn([1, 2, 3]);
-		$relation->expects($this->once())->method('formatSyncList')->with([1, 2, 3])->will($this->returnValue([1 => [], 2 => [], 3 => []]));
+		$collection->shouldReceive('modelKeys')->once()->andReturn(['alice_role', 'taylor_role', 'dayle_role']);
+		$relation->expects($this->once())->method('formatSyncList')->with(['alice_role', 'taylor_role', 'dayle_role'])->will($this->returnValue(['alice_role' => [], 'taylor_role' => [], 'dayle_role' => []]));
 		$relation->sync($collection);
 	}
 	
@@ -407,11 +405,11 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$query->shouldReceive('where')->once()->with('foo', '=', 'bar')->andReturn($query);
 		
 		// This is so $relation->sync() works
-		$query->shouldReceive('lists')->once()->with('role_name')->andReturn([1, 2, 3]);
-		$relation->expects($this->once())->method('formatSyncList')->with([1, 2, 3])->will($this->returnValue([1 => [], 2 => [], 3 => []]));
+		$query->shouldReceive('lists')->once()->with('role_name')->andReturn(['taylor_role', 'dayle_role']);
+		$relation->expects($this->once())->method('formatSyncList')->with(['taylor_role', 'dayle_role'])->will($this->returnValue(['taylor_role' => [], 'dayle_role' => []]));
 		
 		$relation = $relation->wherePivot('foo', '=', 'bar'); // these params are to be stored
-		$relation->sync([1, 2, 3]); // triggers the whole process above
+		$relation->sync(['taylor_role', 'dayle_role']); // triggers the whole process above
 	}
 	
 	
