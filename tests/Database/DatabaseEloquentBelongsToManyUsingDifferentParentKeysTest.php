@@ -417,7 +417,7 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$query->shouldReceive('where')->once()->with('foo', '=', 'bar')->andReturn($query);
 		
 		// This is so $relation->sync() works
-		$query->shouldReceive('lists')->once()->with('role_id')->andReturn([1, 2, 3]);
+		$query->shouldReceive('lists')->once()->with('role_name')->andReturn([1, 2, 3]);
 		$relation->expects($this->once())->method('formatSyncList')->with([1, 2, 3])->will($this->returnValue([1 => [],2 => [],3 => []]));
 		
 		
@@ -456,7 +456,7 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$builder->shouldReceive('join')->once()->with('user_role', 'roles.name', '=', 'user_role.role_name');
 		$builder->shouldReceive('where')->once()->with('user_role.user_id', '=', 1);
 		
-		return array($builder, $parent, 'user_role', 'user_id', 'role_id', 'relation_name');
+		return array($builder, $parent, 'user_role', 'user_id', 'role_name', 'relation_name', null, 'name');
 	}
 }
 
