@@ -945,7 +945,9 @@ class BelongsToMany extends Relation {
 			call_user_func_array([$query, 'where'], $whereArgs);
 		}
 
-		return $query->where($this->foreignKey, $this->parent->getKey());
+		$key = $this->remoteForeignKey ? $this->parent->getAttribute($this->remoteForeignKey) : $this->parent->getKey();
+		
+		return $query->where($this->foreignKey, $key);
 	}
 
 	/**
