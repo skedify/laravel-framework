@@ -14,9 +14,6 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		m::close();
 	}
 	
-	/**
-	 * @group belongs-to-many-hydrate
-	 */
 	public function testModelsAreProperlyHydrated()
 	{
 		$model1 = new EloquentBelongsToManyUsingDifferentParentKeysModelStub;
@@ -57,9 +54,6 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$this->assertTrue($results[0]->pivot->exists);
 	}
 	
-	/**
-	 * @group belongs-to-many-parents
-	 */
 	public function testModelsAreProperlyMatchedToParents()
 	{
 		$relation = $this->getRelation();
@@ -92,9 +86,6 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	}
 	
 	
-	/**
-	 * @group belongs-to-many-initialized
-	 */
 	public function testRelationIsProperlyInitialized()
 	{
 		$relation = $this->getRelation();
@@ -109,9 +100,6 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	}
 	
 	
-	/**
-	 * @group belongs-to-many-eager
-	 */
 	public function testEagerConstraintsAreProperlyAdded()
 	{
 		$relation = $this->getRelation();
@@ -123,9 +111,7 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$relation->addEagerConstraints([$model1, $model2]);
 	}
 	
-	/**
-	 * @group belongs-to-many-attach-inserts
-	 */
+	
 	public function testAttachInsertsPivotTableRecord()
 	{
 		$relation = $this->getMock('Illuminate\Database\Eloquent\Relations\BelongsToMany', ['touchIfTouching'], $this->getRelationArguments());
@@ -140,9 +126,6 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	}
 	
 	
-	/**
-	 * @group belongs-to-many-attach-inserts-multiple
-	 */
 	public function testAttachMultipleInsertsPivotTableRecord()
 	{
 		$relation = $this->getMock('Illuminate\Database\Eloquent\Relations\BelongsToMany', ['touchIfTouching'], $this->getRelationArguments());
@@ -162,9 +145,6 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	}
 	
 	
-	/**
-	 * @group belongs-to-many-attach-timestamps
-	 */
 	public function testAttachInsertsPivotTableRecordWithTimestampsWhenNecessary()
 	{
 		$relation = $this->getMock('Illuminate\Database\Eloquent\Relations\BelongsToMany', ['touchIfTouching'], $this->getRelationArguments());
@@ -274,6 +254,8 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	
 	
 	/**
+	 * @param array $list
+	 * 
 	 * @dataProvider syncMethodListProvider
 	 */
 	public function testSyncMethodSyncsIntermediateTableWithGivenArray($list)
@@ -451,8 +433,6 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 class EloquentBelongsToManyUsingDifferentParentKeysModelStub extends Illuminate\Database\Eloquent\Model {
 	
 	protected $guarded = [];
-	
-//	protected $attributues = ['id', 'name', 'created_at', 'updated_at'];
 }
 
 class EloquentBelongsToManyUsingDifferentParentKeysModelPivotStub extends Illuminate\Database\Eloquent\Model {
