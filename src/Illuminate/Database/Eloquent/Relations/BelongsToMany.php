@@ -41,7 +41,7 @@ class BelongsToMany extends Relation {
      * 
      * @var string|null 
      */
-	protected $parentForeignKey;
+	protected $remoteForeignKey;
     
     /**
      * The attribute of the parent that should be used for 
@@ -49,7 +49,7 @@ class BelongsToMany extends Relation {
      * 
      * @var null 
      */
-	protected $parentOtherKey;
+	protected $remoteOtherKey;
 
 	/**
 	 * The pivot table columns to retrieve.
@@ -76,18 +76,18 @@ class BelongsToMany extends Relation {
      * @param $foreignKey
      * @param $otherKey
      * @param null $relationName
-     * @param null $parentForeignKey the name of the key in the parents table which corresponds with the foreignKey of the pivotTable
-     * @param null $parentOtherKey the name of the key in the parents table which corresponds with the otherKey of the pivotTable
+     * @param null $remoteForeignKey the name of the key in the parents table which corresponds with the foreignKey of the pivotTable
+     * @param null $remoteOtherKey the name of the key in the parents table which corresponds with the otherKey of the pivotTable
      */
     
-    public function __construct(Builder $query, Model $parent, $table, $foreignKey, $otherKey, $relationName = null, $parentForeignKey = null, $parentOtherKey = null)
+    public function __construct(Builder $query, Model $parent, $table, $foreignKey, $otherKey, $relationName = null, $remoteForeignKey = null, $remoteOtherKey = null)
     {
         $this->table = $table;
         $this->otherKey = $otherKey;
         $this->foreignKey = $foreignKey;
         $this->relationName = $relationName;
-        $this->parentForeignKey = $parentForeignKey;
-        $this->parentOtherKey = $parentOtherKey;
+        $this->remoteForeignKey = $remoteForeignKey;
+        $this->remoteOtherKey = $remoteOtherKey;
         
         parent::__construct($query, $parent);
     }
@@ -377,7 +377,7 @@ class BelongsToMany extends Relation {
 		
 		$baseTable = $this->related->getTable();
 		
-		$keyName = $this->parentOtherKey ?: $this->related->getKeyName();
+		$keyName = $this->remoteOtherKey ?: $this->related->getKeyName();
 		
 		$key = $baseTable.'.'.$keyName;
 		
@@ -395,7 +395,7 @@ class BelongsToMany extends Relation {
 	{
 		$foreign = $this->getForeignKey();
 		
-		$key = $this->parentForeignKey ? $this->parent->getAttribute($this->parentForeignKey) : $this->parent->getKey();
+		$key = $this->remoteForeignKey ? $this->parent->getAttribute($this->remoteForeignKey) : $this->parent->getKey();
 		
 		$this->query->where($foreign, '=', $key);
 		
@@ -531,7 +531,7 @@ class BelongsToMany extends Relation {
 	{
 		$model->save(array('touch' => false));
 		
-		$key = $this->parentOtherKey ? $model->getAttribute($this->parentOtherKey) : $model->getKey();
+		$key = $this->remoteOtherKey ? $model->getAttribute($this->remoteOtherKey) : $model->getKey();
 		
 		$this->attach($key, $joining, $touch);
 		
@@ -743,7 +743,7 @@ class BelongsToMany extends Relation {
 	{
 		if ($id instanceof Model)
 		{
-			$id = $this->parentOtherKey ? $id->getAttribute($this->parentOtherKey) : $id->getKey();
+			$id = $this->remoteOtherKey ? $id->getAttribute($this->remoteOtherKey) : $id->getKey();
 		}
 		$query = $this->newPivotStatement();
 		
@@ -824,7 +824,7 @@ class BelongsToMany extends Relation {
 	 */
 	protected function createAttachRecord($id, $timed)
 	{
-		$key = $this->parentForeignKey ? $this->parent->getAttribute($this->parentForeignKey) : $this->parent->getKey();
+		$key = $this->remoteForeignKey ? $this->parent->getAttribute($this->remoteForeignKey) : $this->parent->getKey();
 		$record[$this->foreignKey] = $key;
 		
 		$record[$this->otherKey] = $id;
@@ -1066,7 +1066,7 @@ class BelongsToMany extends Relation {
 	 */
 	public function getQualifiedParentKeyName()
 	{
-		return $this->parentForeignKey ? $this->parent->getTable().'.'.$this->parentForeignKey : $this->parent->getQualifiedKeyName();
+		return $this->remoteForeignKey ? $this->parent->getTable().'.'.$this->remoteForeignKey : $this->parent->getQualifiedKeyName();
 	}
 
 	/**

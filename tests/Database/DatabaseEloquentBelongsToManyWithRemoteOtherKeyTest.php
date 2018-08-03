@@ -4,10 +4,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Mockery as m;
 
-/**
- * @group belongs-to-many
- */
-class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_Framework_TestCase {
+class DatabaseEloquentBelongsToManyWithRemoteOtherKeyTest extends PHPUnit_Framework_TestCase {
 	
 	public function tearDown()
 	{
@@ -16,9 +13,9 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	
 	public function testModelsAreProperlyHydrated()
 	{
-		$model1 = new EloquentBelongsToManyUsingDifferentParentKeysModelStub;
+		$model1 = new EloquentBelongsToManyWithRemoteOtherKeyModelStub;
 		$model1->fill(['name' => 'taylor', 'pivot_user_id' => 1, 'pivot_role_name' => 'taylor_role']);
-		$model2 = new EloquentBelongsToManyUsingDifferentParentKeysModelStub;
+		$model2 = new EloquentBelongsToManyWithRemoteOtherKeyModelStub;
 		$model2->fill(['name' => 'dayle', 'pivot_user_id' => 3, 'pivot_role_name' => 'dayle_role']);
 		$models = [$model1, $model2];
 		
@@ -65,11 +62,11 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 		$result3 = new EloquentBelongsToManyModelPivotStub;
 		$result3->pivot->user_id = 2;
 		
-		$model1 = new EloquentBelongsToManyUsingDifferentParentKeysModelStub;
+		$model1 = new EloquentBelongsToManyWithRemoteOtherKeyModelStub;
 		$model1->id = 1;
-		$model2 = new EloquentBelongsToManyUsingDifferentParentKeysModelStub;
+		$model2 = new EloquentBelongsToManyWithRemoteOtherKeyModelStub;
 		$model2->id = 2;
-		$model3 = new EloquentBelongsToManyUsingDifferentParentKeysModelStub;
+		$model3 = new EloquentBelongsToManyWithRemoteOtherKeyModelStub;
 		$model3->id = 3;
 		
 		$relation->getRelated()->shouldReceive('newCollection')->andReturnUsing(function ($array) {
@@ -104,9 +101,9 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	{
 		$relation = $this->getRelation();
 		$relation->getQuery()->shouldReceive('whereIn')->once()->with('user_role.user_id', [1, 2]);
-		$model1 = new EloquentBelongsToManyUsingDifferentParentKeysModelStub;
+		$model1 = new EloquentBelongsToManyWithRemoteOtherKeyModelStub;
 		$model1->id = 1;
-		$model2 = new EloquentBelongsToManyUsingDifferentParentKeysModelStub;
+		$model2 = new EloquentBelongsToManyWithRemoteOtherKeyModelStub;
 		$model2->id = 2;
 		$relation->addEagerConstraints([$model1, $model2]);
 	}
@@ -430,22 +427,22 @@ class DatabaseEloquentBelongsToManyUsingDifferentParentKeysTest extends PHPUnit_
 	}
 }
 
-class EloquentBelongsToManyUsingDifferentParentKeysModelStub extends Illuminate\Database\Eloquent\Model {
+class EloquentBelongsToManyWithRemoteOtherKeyModelStub extends Illuminate\Database\Eloquent\Model {
 	
 	protected $guarded = [];
 }
 
-class EloquentBelongsToManyUsingDifferentParentKeysModelPivotStub extends Illuminate\Database\Eloquent\Model {
+class EloquentBelongsToManyWithRemoteOtherKeyModelPivotStub extends Illuminate\Database\Eloquent\Model {
 	
 	public $pivot;
 	
 	public function __construct()
 	{
-		$this->pivot = new EloquentBelongsToManyUsingDifferentParentKeysPivotStub;
+		$this->pivot = new EloquentBelongsToManyWithRemoteOtherKeyPivotStub;
 	}
 }
 
-class EloquentBelongsToManyUsingDifferentParentKeysPivotStub {
+class EloquentBelongsToManyWithRemoteOtherKeyPivotStub {
 	
 	public $user_id;
 }
