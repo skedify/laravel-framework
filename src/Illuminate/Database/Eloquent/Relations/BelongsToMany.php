@@ -38,16 +38,16 @@ class BelongsToMany extends Relation {
     
     /**
      * The foreign key (on the junction table) that represents the parent
-     * 
-     * @var string|null 
+     *
+     * @var string|null
      */
 	protected $remoteForeignKey;
     
     /**
-     * The attribute of the parent that should be used for 
+     * The attribute of the parent that should be used for
      * the parent's foreign key value (on the junction table)
-     * 
-     * @var null 
+     *
+     * @var null
      */
 	protected $remoteOtherKey;
 
@@ -449,7 +449,8 @@ class BelongsToMany extends Relation {
 		// the parent models. Then we will return the hydrated models back out.
 		foreach ($models as $model)
 		{
-			if (isset($dictionary[$key = $model->getKey()]))
+            $key = $this->remoteForeignKey ? $model->getAttribute($this->remoteForeignKey) : $model->getKey();
+            if (isset($dictionary[$key]))
 			{
 				$collection = $this->related->newCollection($dictionary[$key]);
 
