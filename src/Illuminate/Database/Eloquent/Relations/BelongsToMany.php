@@ -1,10 +1,10 @@
 <?php namespace Illuminate\Database\Eloquent\Relations;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Query\Expression;
 
 class BelongsToMany extends Relation {
 
@@ -35,6 +35,21 @@ class BelongsToMany extends Relation {
 	 * @var string
 	 */
 	protected $relationName;
+    
+    /**
+     * The foreign key (on the junction table) that represents the parent
+     *
+     * @var string|null
+     */
+	protected $remoteForeignKey;
+    
+    /**
+     * The attribute of the parent that should be used for
+     * the parent's foreign key value (on the junction table)
+     *
+     * @var null
+     */
+	protected $remoteOtherKey;
 
 	/**
 	 * The pivot table columns to retrieve.
@@ -49,27 +64,33 @@ class BelongsToMany extends Relation {
 	 * @var array
 	 */
 	protected $pivotWheres = [];
-
-	/**
-	 * Create a new has many relationship instance.
-	 *
-	 * @param  \Illuminate\Database\Eloquent\Builder  $query
-	 * @param  \Illuminate\Database\Eloquent\Model  $parent
-	 * @param  string  $table
-	 * @param  string  $foreignKey
-	 * @param  string  $otherKey
-	 * @param  string  $relationName
-	 * @return void
-	 */
-	public function __construct(Builder $query, Model $parent, $table, $foreignKey, $otherKey, $relationName = null)
-	{
-		$this->table = $table;
-		$this->otherKey = $otherKey;
-		$this->foreignKey = $foreignKey;
-		$this->relationName = $relationName;
-
-		parent::__construct($query, $parent);
-	}
+    
+    /**
+     * The original BelongsToMany relationship is extended so it can be passed key-names
+     * of the parents, which are used for linking the pivot table to those tables on keys
+     * other than the primary key of those tables
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param \Illuminate\Database\Eloquent\Model $parent
+     * @param $table
+     * @param $foreignKey
+     * @param $otherKey
+     * @param null $relationName
+     * @param null $remoteForeignKey the name of the key in the parents table which corresponds with the foreignKey of the pivotTable
+     * @param null $remoteOtherKey the name of the key in the parents table which corresponds with the otherKey of the pivotTable
+     */
+    
+    public function __construct(Builder $query, Model $parent, $table, $foreignKey, $otherKey, $relationName = null, $remoteForeignKey = null, $remoteOtherKey = null)
+    {
+        $this->table = $table;
+        $this->otherKey = $otherKey;
+        $this->foreignKey = $foreignKey;
+        $this->relationName = $relationName;
+        $this->remoteForeignKey = $remoteForeignKey;
+        $this->remoteOtherKey = $remoteOtherKey;
+        
+        parent::__construct($query, $parent);
+    }
 
 	/**
 	 * Get the results of the relationship.
@@ -343,7 +364,7 @@ class BelongsToMany extends Relation {
 	{
 		return in_array($column, $this->pivotColumns);
 	}
-
+	
 	/**
 	 * Set the join clause for the relation query.
 	 *
@@ -353,19 +374,18 @@ class BelongsToMany extends Relation {
 	protected function setJoin($query = null)
 	{
 		$query = $query ?: $this->query;
-
-		// We need to join to the intermediate table on the related model's primary
-		// key column with the intermediate table's foreign key for the related
-		// model instance. Then we can set the "where" for the parent models.
+		
 		$baseTable = $this->related->getTable();
-
-		$key = $baseTable.'.'.$this->related->getKeyName();
-
+		
+		$keyName = $this->remoteOtherKey ?: $this->related->getKeyName();
+		
+		$key = $baseTable.'.'.$keyName;
+		
 		$query->join($this->table, $key, '=', $this->getOtherKey());
-
+		
 		return $this;
 	}
-
+	
 	/**
 	 * Set the where clause for the relation query.
 	 *
@@ -374,13 +394,15 @@ class BelongsToMany extends Relation {
 	protected function setWhere()
 	{
 		$foreign = $this->getForeignKey();
-
-		$this->query->where($foreign, '=', $this->parent->getKey());
-
+		
+		$key = $this->remoteForeignKey ? $this->parent->getAttribute($this->remoteForeignKey) : $this->parent->getKey();
+		
+		$this->query->where($foreign, '=', $key);
+		
 		return $this;
 	}
-
-	/**
+    
+    /**
 	 * Set the constraints for an eager load of the relation.
 	 *
 	 * @param  array  $models
@@ -388,7 +410,9 @@ class BelongsToMany extends Relation {
 	 */
 	public function addEagerConstraints(array $models)
 	{
-		$this->query->whereIn($this->getForeignKey(), $this->getKeys($models));
+		$keys = $this->remoteForeignKey ? $this->getKeys($models, $this->remoteForeignKey) : $this->getKeys($models);
+
+		$this->query->whereIn($this->getForeignKey(), $keys);
 	}
 
 	/**
@@ -425,7 +449,8 @@ class BelongsToMany extends Relation {
 		// the parent models. Then we will return the hydrated models back out.
 		foreach ($models as $model)
 		{
-			if (isset($dictionary[$key = $model->getKey()]))
+            $key = $this->remoteForeignKey ? $model->getAttribute($this->remoteForeignKey) : $model->getKey();
+            if (isset($dictionary[$key]))
 			{
 				$collection = $this->related->newCollection($dictionary[$key]);
 
@@ -496,7 +521,7 @@ class BelongsToMany extends Relation {
 
 		return $this->getQuery()->select($fullKey)->lists($related->getKeyName());
 	}
-
+	
 	/**
 	 * Save a new model and attach it to the parent model.
 	 *
@@ -508,9 +533,11 @@ class BelongsToMany extends Relation {
 	public function save(Model $model, array $joining = array(), $touch = true)
 	{
 		$model->save(array('touch' => false));
-
-		$this->attach($model->getKey(), $joining, $touch);
-
+		
+		$key = $this->remoteOtherKey ? $model->getAttribute($this->remoteOtherKey) : $model->getKey();
+		
+		$this->attach($key, $joining, $touch);
+		
 		return $model;
 	}
 
@@ -560,7 +587,7 @@ class BelongsToMany extends Relation {
 	 *
 	 * @param  array  $records
 	 * @param  array  $joinings
-	 * @return \Illuminate\Database\Eloquent\Model
+	 * @return \Illuminate\Database\Eloquent\Model[]
 	 */
 	public function createMany(array $records, array $joinings = array())
 	{
@@ -607,7 +634,7 @@ class BelongsToMany extends Relation {
 		{
 			$this->detach($detach);
 
-			$changes['detached'] = (array) array_map(function($v) { return (int) $v; }, $detach);
+			$changes['detached'] = (array) array_map(function($v) { return $v; }, $detach);
 		}
 
 		// Now we are finally ready to attach the new records. Note that we'll disable
@@ -669,7 +696,7 @@ class BelongsToMany extends Relation {
 			{
 				$this->attach($id, $attributes, $touch);
 
-				$changes['attached'][] = (int) $id;
+				$changes['attached'][] = $id;
 			}
 
 			// Now we'll try to update an existing pivot record with the attributes that were
@@ -678,7 +705,7 @@ class BelongsToMany extends Relation {
 			elseif (count($attributes) > 0 &&
 				$this->updateExistingPivot($id, $attributes, $touch))
 			{
-				$changes['updated'][] = (int) $id;
+				$changes['updated'][] = $id;
 			}
 		}
 
@@ -706,7 +733,7 @@ class BelongsToMany extends Relation {
 
 		return $updated;
 	}
-
+	
 	/**
 	 * Attach a model to the parent.
 	 *
@@ -717,12 +744,14 @@ class BelongsToMany extends Relation {
 	 */
 	public function attach($id, array $attributes = array(), $touch = true)
 	{
-		if ($id instanceof Model) $id = $id->getKey();
-
+		if ($id instanceof Model)
+		{
+			$id = $this->remoteOtherKey ? $id->getAttribute($this->remoteOtherKey) : $id->getKey();
+		}
 		$query = $this->newPivotStatement();
-
+		
 		$query->insert($this->createAttachRecords((array) $id, $attributes));
-
+		
 		if ($touch) $this->touchIfTouching();
 	}
 
@@ -788,7 +817,7 @@ class BelongsToMany extends Relation {
 
 		return array($value, $attributes);
 	}
-
+	
 	/**
 	 * Create a new pivot attachment record.
 	 *
@@ -798,10 +827,11 @@ class BelongsToMany extends Relation {
 	 */
 	protected function createAttachRecord($id, $timed)
 	{
-		$record[$this->foreignKey] = $this->parent->getKey();
-
+		$key = $this->remoteForeignKey ? $this->parent->getAttribute($this->remoteForeignKey) : $this->parent->getKey();
+		$record[$this->foreignKey] = $key;
+		
 		$record[$this->otherKey] = $id;
-
+		
 		// If the record needs to have creation and update timestamps, we will make
 		// them by calling the parent model's "freshTimestamp" method which will
 		// provide us with a fresh timestamp in this model's preferred format.
@@ -809,7 +839,7 @@ class BelongsToMany extends Relation {
 		{
 			$record = $this->setTimestampsOnAttach($record);
 		}
-
+		
 		return $record;
 	}
 
@@ -916,7 +946,9 @@ class BelongsToMany extends Relation {
 			call_user_func_array([$query, 'where'], $whereArgs);
 		}
 
-		return $query->where($this->foreignKey, $this->parent->getKey());
+		$key = $this->remoteForeignKey ? $this->parent->getAttribute($this->remoteForeignKey) : $this->parent->getKey();
+		
+		return $query->where($this->foreignKey, $key);
 	}
 
 	/**
@@ -995,7 +1027,7 @@ class BelongsToMany extends Relation {
 	/**
 	 * Get the related model's updated at column name.
 	 *
-	 * @return string
+	 * @return array
 	 */
 	public function getRelatedFreshUpdate()
 	{
@@ -1030,6 +1062,16 @@ class BelongsToMany extends Relation {
 	public function getOtherKey()
 	{
 		return $this->table.'.'.$this->otherKey;
+	}
+	
+	/**
+	 * Get the fully qualified parent key name.
+	 *
+	 * @return string
+	 */
+	public function getQualifiedParentKeyName()
+	{
+		return $this->remoteForeignKey ? $this->parent->getTable().'.'.$this->remoteForeignKey : $this->parent->getQualifiedKeyName();
 	}
 
 	/**
