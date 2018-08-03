@@ -921,7 +921,7 @@ abstract class Model implements ArrayAccess, ArrayableInterface, JsonableInterfa
 	 * @param  string  $relation
 	 * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
 	 */
-	public function belongsToMany($related, $table = null, $foreignKey = null, $otherKey = null, $relation = null)
+	public function belongsToMany($related, $table = null, $foreignKey = null, $otherKey = null, $relation = null, $remoteForeignKey = null, $remoteOtherKey = null)
 	{
 		// If no relationship name was passed, we will pull backtraces to get the
 		// name of the calling function. We will use that function name as the
@@ -953,7 +953,7 @@ abstract class Model implements ArrayAccess, ArrayableInterface, JsonableInterfa
 		// appropriate query constraint and entirely manages the hydrations.
 		$query = $instance->newQuery();
 
-		return new BelongsToMany($query, $this, $table, $foreignKey, $otherKey, $relation);
+		return new BelongsToMany($query, $this, $table, $foreignKey, $otherKey, $relation, $remoteForeignKey, $remoteOtherKey);
 	}
 
 	/**
