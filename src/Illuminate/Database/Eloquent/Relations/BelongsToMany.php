@@ -410,7 +410,9 @@ class BelongsToMany extends Relation {
 	 */
 	public function addEagerConstraints(array $models)
 	{
-		$this->query->whereIn($this->getForeignKey(), $this->getKeys($models));
+		$keys = $this->remoteForeignKey ? $this->getKeys($models, $this->remoteForeignKey) : $this->getKeys($models);
+
+		$this->query->whereIn($this->getForeignKey(), $keys);
 	}
 
 	/**
